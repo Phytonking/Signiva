@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document Viewer and Editor</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.28.0/docxtemplater.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.0.0/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto p-6">
+    <h1 class="text-2xl font-bold text-center mb-6">Document Viewer & Editor</h1>
+
+    <div class="flex flex-col items-center space-y-4">
+      <input id="fileInput" type="file" accept=".pdf, .docx" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer focus:outline-none focus:ring focus:ring-indigo-500">
+
+      <div id="pdfViewerContainer" class="w-full h-96 bg-white rounded shadow overflow-auto border border-gray-300 p-4 hidden">
+        <canvas id="pdfCanvas" class="w-full"></canvas>
+      </div>
+
+      <div id="editorContainer" class="w-full h-96 bg-white rounded shadow overflow-auto border border-gray-300 p-4 hidden">
+        <textarea id="editor" class="w-full h-full p-4 text-sm font-mono bg-gray-100 border border-gray-300 rounded resize-none focus:outline-none focus:ring focus:ring-indigo-500" placeholder="Document content will appear here..."></textarea>
+      </div>
+
+      <button id="saveButton" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 focus:outline-none focus:ring focus:ring-indigo-500 hidden">Save Changes</button>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const pdfViewerContainer = document.getElementById('pdfViewerContainer');
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    const editorContainer = document.getElementById('editorContainer');
+    const editor = document.getElementById('editor');
+    const saveButton = document.getElementById('saveButton');
+
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+
+      if (file) {
+        const reader = new FileReader();
+
+        if (file.type === 'application/pdf') {
+          reader.onload = () => {
+            const pdfData = reader.result;
+            const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+
+            loadingTask.promise.then((pdf) => {
+              pdf.getPage(1).then((page) => {
+                const viewport = page.getViewport({ scale: 1.5 });
+                const context = pdfCanvas.getContext('2d');
+                pdfCanvas.height = viewport.height;
+                pdfCanvas.width = viewport.width;
+
+                const renderContext = {
+                  canvasContext: context,
+                  viewport: viewport
+                };
+
+                page.render(renderContext).promise.then(() => {
+                  pdfViewerContainer.classList.remove('hidden');
+                  editorContainer.classList.add('hidden');
+                  saveButton.classList.add('hidden');
+                });
+              });
+            });
+          };
+          reader.readAsArrayBuffer(file);
+        } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          reader.onload = async () => {
+            const arrayBuffer = reader.result;
+            const zip = new JSZip();
+            await zip.loadAsync(arrayBuffer);
+            const docText = await zip.file("word/document.xml").async("text");
+            editor.value = docText;
+            editorContainer.classList.remove('hidden');
+            pdfViewerContainer.classList.add('hidden');
+            saveButton.classList.remove('hidden');
+          };
+          reader.readAsArrayBuffer(file);
+        } else {
+          alert('Unsupported file type. Please upload a PDF or DOCX file.');
+        }
+      }
+    });
+
+    saveButton.addEventListener('click', () => {
+      const updatedContent = editor.value;
+      const blob = new Blob([updatedContent], { type: 'text/plain;charset=utf-8' });
+      saveAs(blob, 'edited-document.txt');
+    });
+  </script>
+</body>
+</html>

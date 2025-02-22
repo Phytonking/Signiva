@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Document Manager{% endblock %}</title>
+    <!-- Include Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Additional custom styles if needed -->
+    <style>
+        /* Custom styles can go here */
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        .sidebar-hidden {
+            transform: translateX(-100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans leading-normal tracking-normal">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-blue-600 p-4 text-white">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="{% url 'home' %}" class="text-2xl font-bold">Document Manager</a>
+            <div class="flex items-center">
+                <a href="{% url 'profile' %}" class="mr-4">Profile</a>
+                <a href="{% url 'logout' %}" class="bg-red-500 px-4 py-2 rounded">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="sidebar bg-gray-800 text-white w-64 min-h-screen p-4">
+            <ul>
+                <li class="mb-2">
+                    <a href="{% url 'dashboard' %}" class="block py-2 px-4 hover:bg-gray-700 rounded">Dashboard</a>
+                </li>
+                <li class="mb-2">
+                    <a href="{% url 'documents' %}" class="block py-2 px-4 hover:bg-gray-700 rounded">My Documents</a>
+                </li>
+                <li class="mb-2">
+                    <a href="{% url 'create_document' %}" class="block py-2 px-4 hover:bg-gray-700 rounded">Create Document</a>
+                </li>
+                <li class="mb-2">
+                    <a href="{% url 'shared_documents' %}" class="block py-2 px-4 hover:bg-gray-700 rounded">Shared Documents</a>
+                </li>
+                <li class="mb-2">
+                    <a href="{% url 'settings' %}" class="block py-2 px-4 hover:bg-gray-700 rounded">Settings</a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            {% block content %}
+            <!-- Content will be overridden by child templates -->
+            {% endblock %}
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-blue-600 text-white p-4 mt-8">
+        <div class="container mx-auto text-center">
+            <p>&copy; 2023 Document Manager. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for interactive elements (e.g., sidebar toggle) -->
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('sidebar-hidden');
+        }
+    </script>
+</body>
+</html>

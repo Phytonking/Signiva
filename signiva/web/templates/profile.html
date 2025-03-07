@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8">
+    <h1 class="text-2xl font-bold mb-4">Profile</h1>
+    <form method="post" enctype="multipart/form-data" class="bg-white p-6 rounded-lg shadow-md">
+        {% csrf_token %}
+        <div class="mb-4">
+            <label class="block text-gray-700">Username</label>
+            {{ user_form.username }}
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700">Email</label>
+            {{ user_form.email }}
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700">Bio</label>
+            {{ profile_form.bio }}
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700">Profile Picture</label>
+            {{ profile_form.profile_picture }}
+        </div>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Update Profile</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit Document{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8">
+    <h1 class="text-2xl font-bold mb-4">Edit Document</h1>
+
+    <!-- Display form errors -->
+    {% if form.errors %}
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <strong>Error:</strong> Please correct the errors below.
+            <ul class="mt-2">
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <!-- Edit Form -->
+    <form method="post" enctype="multipart/form-data" class="bg-white p-6 rounded-lg shadow-md">
+        {% csrf_token %}
+        <div class="mb-4">
+            <label for="id_title" class="block text-gray-700">Title</label>
+            <input type="text" name="title" id="id_title" value="{{ form.title.value }}" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" required>
+        </div>
+        <div class="mb-4">
+            <label for="id_description" class="block text-gray-700">Description</label>
+            <textarea name="description" id="id_description" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">{{ form.description.value }}</textarea>
+        </div>
+        <div class="mb-4">
+            <label for="id_file" class="block text-gray-700">Replace PDF File</label>
+            <input type="file" name="file" id="id_file" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+            <p class="text-sm text-gray-500 mt-2">Current file: <a href="{% url 'download_document' document.id %}" class="text-blue-600 hover:underline">{{ document.file.name }}</a></p>
+        </div>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save Changes</button>
+        <a href="{% url 'document_list' %}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 ml-2">Cancel</a>
+    </form>
+
+    <!-- PDF Editor Section -->
+    <div class="mt-6 bg-white p-4 rounded-lg shadow-md">
+        <h2 class="text-xl font-bold mb-4">Edit PDF Content</h2>
+        <canvas id="pdf-canvas" class="w-full rounded-lg"></canvas>
+        <div class="mt-4">
+            <button id="add-text" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Add Text</button>
+            <button id="save-pdf" class="bg-green-600 text-white px-4 py-2 rounded-lg ml-2">Save PDF</button>
+        </div>
+    </div>
+</div>
+
+<!-- Include PDF-LIB -->
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+<script>
+    const url = "{% url 'download_document' document.id %}";
+    const canvas = document.getElementById('pdf-canvas');
+    let pdfDoc = null;
+
+    // Load the PDF
+    fetch(url)
+        .then(response => response.arrayBuffer())
+        .then(async data => {
+            pdfDoc = await PDFLib.PDFDocument.load(data);
+            const pages = pdfDoc.getPages();
+            const firstPage = pages[0];
+
+            // Draw the PDF on the canvas
+            const pdfImage = await pdfDoc.embedPdf(firstPage);
+            const context = canvas.getContext('2d');
+            pdfImage.render(context, { width: canvas.width, height: canvas.height });
+
+            // Add text to the PDF
+            document.getElementById('add-text').addEventListener('click', () => {
+                firstPage.drawText('Hello, World!', { x: 50, y: 50, size: 30, color: PDFLib.rgb(1, 0, 0) });
+                const pdfBytes = await pdfDoc.save();
+                // Save the edited PDF (you'll need to handle this on the server)
+            });
+
+            // Save the edited PDF
+            document.getElementById('save-pdf').addEventListener('click', async () => {
+                const pdfBytes = await pdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const formData = new FormData();
+                formData.append('file', blob, 'edited.pdf');
+
+                // Send the edited PDF to the server
+                fetch("{% url 'save_edited_pdf' document.id %}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('PDF saved successfully!');
+                    } else {
+                        alert('Failed to save PDF.');
+                    }
+                });
+            });
+        });
+</script>
+{% endblock %}

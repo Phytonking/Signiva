@@ -92,7 +92,7 @@ def edit_document(request, document_id):
             return redirect('document_list')
     else:
         form = DocumentForm(instance=document)
-    return render(request, 'edit_document.html', {'form': form})
+    return render(request, 'edit_document.html', {'form': form, 'document':document})
 
 @login_required(login_url='/login')
 def delete_document(request, document_id):

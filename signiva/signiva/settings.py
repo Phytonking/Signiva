@@ -126,3 +126,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 XS_SHARING_ALLOWED_METHODS = ['POST','GET','OPTIONS', 'PUT', 'DELETE']
+
+
+ANYSIGN = {
+    'BACKENDS': {
+        'dummysign': 'django_dummysign.backend.DummySignBackend',
+    },
+    'SIGNATURE_TYPE_MODEL': 'web.models.SignatureType',
+    'SIGNATURE_MODEL': 'web.models.Signature',
+    'SIGNER_MODEL': 'web.models.Signer',
+}
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.office365.com'  # Outlook SMTP server
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'avi.agola@outlook.com'  # Your Outlook email
+EMAIL_HOST_PASSWORD = '@Avimongo07'  # Your Outlook password
+DEFAULT_FROM_EMAIL = 'avi.agola@outlook.com'
+
+# Add SITE_URL for email links
+SITE_URL = 'http://localhost:8000'  # Change this in production

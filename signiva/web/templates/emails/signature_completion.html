@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #0078d4;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Document Signed</h2>
+        <p>Hello {{ document.user.username }},</p>
+        <p>The document "<strong>{{ document.title }}</strong>" has been signed by <strong>{{ signature.signer_email }}</strong>.</p>
+        <p>You can view the signed document by clicking the button below:</p>
+        <a href="{{ document_url }}" class="button">View Signed Document</a>
+        <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+        <p>{{ document_url }}</p>
+        <div class="footer">
+            <p>This is an automated message from Signiva. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html> 

@@ -1,5 +1,5 @@
 from django.http import FileResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib import messages
@@ -10,6 +10,8 @@ from .models import Document
 from django.shortcuts import render, redirect
 from .forms import DocumentForm
 import uuid
+from django.utils import timezone
+from .utils import send_signature_request_email, send_signature_completion_email
 
 # Index View
 @login_required(login_url='/login')
@@ -155,3 +157,41 @@ def save_edited_pdf(request, document_id):
         document.file.save('edited.pdf', request.FILES['file'])
         return JsonResponse({'success': True})
     return JsonResponse({'success': False})
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from web.models import Document, DocumentSignature
+
+@login_required
+def request_signature(request, document_id):
+    document = get_object_or_404(Document, id=document_id, user=request.user)
+    if request.method == 'POST':
+        signer_email = request.POST.get('signer_email')
+        signature = DocumentSignature.objects.create(
+            document=document,
+            signer_email=signer_email,
+        )
+        signature.save()
+        # Send email to the signer
+        send_signature_request_email(signature, document)
+        messages.success(request, 'Signature request sent successfully!')
+        return redirect('document_list')
+    return render(request, 'request_signature.html', {'document': document})
+
+@login_required
+def sign_document(request, signature_id):
+    signature = get_object_or_404(DocumentSignature, id=signature_id)
+    if request.method == 'POST':
+        # Save the signature image (e.g., from a canvas)
+        signature.signature_image = request.FILES.get('signature_image')
+        signature.signed_at = timezone.now()
+        signature.save()
+        signature.document.is_signed = True
+        signature.document.save()
+        
+        # Send completion email to document owner
+        send_signature_completion_email(signature, signature.document)
+        messages.success(request, 'Document signed successfully!')
+        return redirect('view_document', document_id=signature.document.id)
+    return render(request, 'sign_document.html', {'signature': signature})

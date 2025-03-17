@@ -16,4 +16,21 @@
         <a href="{% url 'document_list' %}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 ml-2">Back to List</a>
     </div>
 </div>
+<!-- Inside view_document.html -->
+<div class="mt-6 bg-white p-4 rounded-lg shadow-md">
+    <h2 class="text-xl font-bold mb-4">Signatures</h2>
+    {% if document.is_signed %}
+        <p class="text-green-600">Document is signed!</p>
+        {% for signature in document.signatures.all %}
+            <div class="mt-2">
+                <p>Signed by: {{ signature.signer_email }}</p>
+                <p>Date: {{ signature.signed_at }}</p>
+                <img src="{{ signature.signature_image.url }}" alt="Signature" class="w-32 h-16">
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-red-600">Document is not signed.</p>
+        <a href="{% url 'request_signature' document.id %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg mt-4 inline-block">Request Signature</a>
+    {% endif %}
+</div>
 {% endblock %}

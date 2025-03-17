@@ -1,4 +1,5 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+{% load static %}
 
 {% block title %}Edit Document{% endblock %}
 
@@ -20,88 +21,369 @@
         </div>
     {% endif %}
 
-    <!-- Edit Form -->
-    <form method="post" enctype="multipart/form-data" class="bg-white p-6 rounded-lg shadow-md">
-        {% csrf_token %}
-        <div class="mb-4">
-            <label for="id_title" class="block text-gray-700">Title</label>
-            <input type="text" name="title" id="id_title" value="{{ form.title.value }}" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" required>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Document Details Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-bold mb-4">Document Details</h2>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="id_title" class="block text-gray-700">Title</label>
+                    <input type="text" name="title" id="id_title" value="{{ form.title.value }}" 
+                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" required>
+                </div>
+                <div class="mb-4">
+                    <label for="id_description" class="block text-gray-700">Description</label>
+                    <textarea name="description" id="id_description" 
+                              class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">{{ form.description.value }}</textarea>
+                </div>
+                <div class="mb-4">
+                    <label for="id_file" class="block text-gray-700">Replace PDF File</label>
+                    <input type="file" name="file" id="id_file" 
+                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                    <p class="text-sm text-gray-500 mt-2">Current file: 
+                        <a href="{% url 'download_document' document.id %}" class="text-blue-600 hover:underline">{{ document.file.name }}</a>
+                    </p>
+                </div>
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save Changes</button>
+                <a href="{% url 'document_list' %}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 ml-2">Cancel</a>
+            </form>
         </div>
-        <div class="mb-4">
-            <label for="id_description" class="block text-gray-700">Description</label>
-            <textarea name="description" id="id_description" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">{{ form.description.value }}</textarea>
-        </div>
-        <div class="mb-4">
-            <label for="id_file" class="block text-gray-700">Replace PDF File</label>
-            <input type="file" name="file" id="id_file" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
-            <p class="text-sm text-gray-500 mt-2">Current file: <a href="{% url 'download_document' document.id %}" class="text-blue-600 hover:underline">{{ document.file.name }}</a></p>
-        </div>
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save Changes</button>
-        <a href="{% url 'document_list' %}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 ml-2">Cancel</a>
-    </form>
 
-    <!-- PDF Editor Section -->
-    <div class="mt-6 bg-white p-4 rounded-lg shadow-md">
-        <h2 class="text-xl font-bold mb-4">Edit PDF Content</h2>
-        <canvas id="pdf-canvas" class="w-full rounded-lg"></canvas>
-        <div class="mt-4">
-            <button id="add-text" class="bg-blue-600 text-white px-4 py-2 rounded-lg">Add Text</button>
-            <button id="save-pdf" class="bg-green-600 text-white px-4 py-2 rounded-lg ml-2">Save PDF</button>
+        <!-- PDF Editor Section -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-bold mb-4">PDF Editor</h2>
+            <div class="mb-4">
+                <div class="flex space-x-2 mb-4">
+                    <button id="prev-page" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Previous</button>
+                    <span id="page-num" class="px-4 py-2"></span>
+                    <button id="next-page" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Next</button>
+                </div>
+                <div class="border rounded-lg overflow-hidden">
+                    <canvas id="pdf-canvas" class="w-full"></canvas>
+                </div>
+                <div class="mt-4 flex space-x-2">
+                    <button id="add-text" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Text</button>
+                    <button id="add-signature" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Add Signature</button>
+                    <button id="save-pdf" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">Save Changes</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Include PDF-LIB -->
-<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+<!-- Signature Pad Modal -->
+<div id="signature-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">Add Signature</h3>
+            <button id="close-signature-modal" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Saved Signatures Section -->
+        <div class="mb-4">
+            <h4 class="text-lg font-semibold mb-2">Saved Signatures</h4>
+            <div id="saved-signatures" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+                <!-- Saved signatures will be displayed here -->
+            </div>
+        </div>
+
+        <div class="border rounded-lg overflow-hidden bg-white">
+            <canvas id="signature-pad" class="w-full h-64 touch-none"></canvas>
+        </div>
+        <div class="mt-4 flex justify-between items-center">
+            <div class="flex space-x-2">
+                <button id="clear-signature" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    Clear
+                </button>
+                <button id="save-signature" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
+                    Save Signature
+                </button>
+            </div>
+            <button id="apply-signature" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Apply Signature
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-    const url = "{% url 'download_document' document.id %}";
-    const canvas = document.getElementById('pdf-canvas');
+    // Initialize PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
     let pdfDoc = null;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let scale = 1.5;
 
     // Load the PDF
-    fetch(url)
-        .then(response => response.arrayBuffer())
-        .then(async data => {
-            pdfDoc = await PDFLib.PDFDocument.load(data);
-            const pages = pdfDoc.getPages();
-            const firstPage = pages[0];
+    function loadPDF() {
+        const url = "{% url 'download_document' document.id %}";
+        pdfjsLib.getDocument(url).promise.then(function(pdf) {
+            pdfDoc = pdf;
+            document.getElementById('page-num').textContent = pageNum + ' / ' + pdf.numPages;
+            renderPage(pageNum);
+        });
+    }
 
-            // Draw the PDF on the canvas
-            const pdfImage = await pdfDoc.embedPdf(firstPage);
-            const context = canvas.getContext('2d');
-            pdfImage.render(context, { width: canvas.width, height: canvas.height });
+    // Render the page
+    function renderPage(num) {
+        pageRendering = true;
+        pdfDoc.getPage(num).then(function(page) {
+            const canvas = document.getElementById('pdf-canvas');
+            const ctx = canvas.getContext('2d');
 
-            // Add text to the PDF
-            document.getElementById('add-text').addEventListener('click', () => {
-                firstPage.drawText('Hello, World!', { x: 50, y: 50, size: 30, color: PDFLib.rgb(1, 0, 0) });
-                const pdfBytes = await pdfDoc.save();
-                // Save the edited PDF (you'll need to handle this on the server)
-            });
+            const viewport = page.getViewport({ scale: scale });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
 
-            // Save the edited PDF
-            document.getElementById('save-pdf').addEventListener('click', async () => {
-                const pdfBytes = await pdfDoc.save();
-                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                const formData = new FormData();
-                formData.append('file', blob, 'edited.pdf');
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
 
-                // Send the edited PDF to the server
-                fetch("{% url 'save_edited_pdf' document.id %}", {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
-                    },
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('PDF saved successfully!');
-                    } else {
-                        alert('Failed to save PDF.');
-                    }
-                });
+            const renderTask = page.render(renderContext);
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
             });
         });
+
+        document.getElementById('page-num').textContent = num + ' / ' + pdfDoc.numPages;
+    }
+
+    // Queue rendering of the next page
+    function queueRenderPage(num) {
+        if (pageRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
+    }
+
+    // Previous page
+    document.getElementById('prev-page').addEventListener('click', function() {
+        if (pageNum <= 1) {
+            return;
+        }
+        pageNum--;
+        queueRenderPage(pageNum);
+    });
+
+    // Next page
+    document.getElementById('next-page').addEventListener('click', function() {
+        if (pageNum >= pdfDoc.numPages) {
+            return;
+        }
+        pageNum++;
+        queueRenderPage(pageNum);
+    });
+
+    // Add text button
+    document.getElementById('add-text').addEventListener('click', function() {
+        const canvas = document.getElementById('pdf-canvas');
+        const ctx = canvas.getContext('2d');
+        const text = prompt('Enter text to add:');
+        if (text) {
+            ctx.font = '20px Arial';
+            ctx.fillStyle = 'red';
+            ctx.fillText(text, 50, 50);
+        }
+    });
+
+    // Signature Pad Implementation
+    const signatureModal = document.getElementById('signature-modal');
+    const signatureCanvas = document.getElementById('signature-pad');
+    
+    // Set canvas size
+    function resizeCanvas() {
+        const container = signatureCanvas.parentElement;
+        const width = container.offsetWidth;
+        const height = 256; // 64 * 4 (h-64 = 16rem = 256px)
+        
+        // Set canvas size
+        signatureCanvas.width = width;
+        signatureCanvas.height = height;
+        
+        // Clear the pad
+        signaturePad.clear();
+    }
+
+    // Initialize signature pad with proper options
+    const signaturePad = new SignaturePad(signatureCanvas, {
+        backgroundColor: 'rgb(255, 255, 255)',
+        penColor: 'rgb(0, 0, 0)',
+        minWidth: 0.5,
+        maxWidth: 2.5,
+        throttle: 16,
+        onBegin: () => {
+            // Optional: Add any visual feedback when drawing starts
+            signatureCanvas.style.cursor = 'crosshair';
+        },
+        onEnd: () => {
+            // Optional: Reset cursor when drawing ends
+            signatureCanvas.style.cursor = 'default';
+        }
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', resizeCanvas);
+
+    // Handle modal open/close
+    document.getElementById('add-signature').addEventListener('click', function() {
+        signatureModal.classList.remove('hidden');
+        signatureModal.classList.add('flex');
+        signaturePad.clear();
+        updateSavedSignaturesList();
+        // Ensure canvas is properly sized when modal opens
+        setTimeout(resizeCanvas, 0);
+    });
+
+    // Signature Storage and Management
+    const SIGNATURE_STORAGE_KEY = 'saved_signatures';
+    let savedSignatures = JSON.parse(localStorage.getItem(SIGNATURE_STORAGE_KEY) || '[]');
+
+    // Function to save signature
+    function saveSignature() {
+        if (signaturePad.isEmpty()) {
+            alert('Please draw a signature first');
+            return;
+        }
+
+        const signatureData = signaturePad.toDataURL();
+        const name = prompt('Enter a name for this signature:');
+        if (name) {
+            savedSignatures.push({
+                name: name,
+                data: signatureData,
+                timestamp: new Date().getTime()
+            });
+            localStorage.setItem(SIGNATURE_STORAGE_KEY, JSON.stringify(savedSignatures));
+            updateSavedSignaturesList();
+        }
+    }
+
+    // Function to update the saved signatures display
+    function updateSavedSignaturesList() {
+        const container = document.getElementById('saved-signatures');
+        container.innerHTML = '';
+
+        savedSignatures.forEach((sig, index) => {
+            const div = document.createElement('div');
+            div.className = 'relative group';
+            
+            const img = document.createElement('img');
+            img.src = sig.data;
+            img.className = 'w-full h-24 object-contain border rounded cursor-pointer hover:border-blue-500';
+            img.title = sig.name;
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '×';
+            deleteBtn.className = 'absolute top-0 right-0 bg-red-500 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (confirm('Delete this signature?')) {
+                    savedSignatures.splice(index, 1);
+                    localStorage.setItem(SIGNATURE_STORAGE_KEY, JSON.stringify(savedSignatures));
+                    updateSavedSignaturesList();
+                }
+            };
+
+            img.onclick = () => {
+                const img = new Image();
+                img.src = sig.data;
+                img.onload = () => {
+                    const canvas = document.getElementById('pdf-canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const signatureWidth = 200;
+                    const signatureHeight = (signatureWidth * img.height) / img.width;
+                    const x = canvas.width - signatureWidth - 50;
+                    const y = canvas.height - signatureHeight - 50;
+
+                    ctx.drawImage(img, x, y, signatureWidth, signatureHeight);
+                    signatureModal.classList.add('hidden');
+                    signatureModal.classList.remove('flex');
+                };
+            };
+
+            div.appendChild(img);
+            div.appendChild(deleteBtn);
+            container.appendChild(div);
+        });
+    }
+
+    // Save signature button
+    document.getElementById('save-signature').addEventListener('click', saveSignature);
+
+    // Close signature modal
+    document.getElementById('close-signature-modal').addEventListener('click', function() {
+        signatureModal.classList.add('hidden');
+        signatureModal.classList.remove('flex');
+    });
+
+    // Clear signature
+    document.getElementById('clear-signature').addEventListener('click', function() {
+        signaturePad.clear();
+    });
+
+    // Apply signature to PDF
+    document.getElementById('apply-signature').addEventListener('click', function() {
+        if (signaturePad.isEmpty()) {
+            alert('Please provide a signature');
+            return;
+        }
+
+        const signatureData = signaturePad.toDataURL();
+        const img = new Image();
+        img.src = signatureData;
+
+        img.onload = function() {
+            const canvas = document.getElementById('pdf-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Calculate signature position (bottom right corner)
+            const signatureWidth = 200; // Adjust as needed
+            const signatureHeight = (signatureWidth * img.height) / img.width;
+            const x = canvas.width - signatureWidth - 50; // 50px from right
+            const y = canvas.height - signatureHeight - 50; // 50px from bottom
+
+            // Draw signature
+            ctx.drawImage(img, x, y, signatureWidth, signatureHeight);
+            
+            // Close modal
+            signatureModal.classList.add('hidden');
+            signatureModal.classList.remove('flex');
+        };
+    });
+
+    // Close modal when clicking outside
+    signatureModal.addEventListener('click', function(e) {
+        if (e.target === signatureModal) {
+            signatureModal.classList.add('hidden');
+            signatureModal.classList.remove('flex');
+        }
+    });
+
+    // Save PDF button
+    document.getElementById('save-pdf').addEventListener('click', function() {
+        const canvas = document.getElementById('pdf-canvas');
+        const dataURL = canvas.toDataURL('image/png');
+        // Here you would typically send the modified PDF to the server
+        alert('PDF saving functionality to be implemented');
+    });
+
+    // Load PDF when page loads
+    document.addEventListener('DOMContentLoaded', loadPDF);
 </script>
 {% endblock %}

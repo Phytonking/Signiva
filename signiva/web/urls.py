@@ -17,4 +17,6 @@ urlpatterns = [
     path('documents/<uuid:document_id>/edit/', edit_document, name='edit_document'),
     path('documents/<uuid:document_id>/delete/', delete_document, name='delete_document'),
     path('documents/<uuid:document_id>/save', save_edited_pdf, name='save_edited_pdf'),
+    path('documents/<uuid:document_id>/request_signature/', request_signature, name='request_signature'),
+    path('sign/<uuid:signature_id>/', sign_document, name='sign_document'),
 ]

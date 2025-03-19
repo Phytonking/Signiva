@@ -22,11 +22,9 @@ class Document(models.Model):
     
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    bio = models.TextField(blank=True, null=True)
-    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
 
     def __str__(self):
-        return self.user.username
+        return f'{self.user.username} Profile'
     
 class DocumentSignature(anysign.SignatureFactory(SignatureType)):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='signatures')
@@ -39,4 +37,17 @@ class DocumentSignature(anysign.SignatureFactory(SignatureType)):
     
 class Signer(anysign.SignerFactory(DocumentSignature)):
     pass
+    
+class SignaturePlacement(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='signature_placements')
+    page_number = models.IntegerField()
+    x = models.FloatField()  # X coordinate as percentage of page width
+    y = models.FloatField()  # Y coordinate as percentage of page height
+    width = models.FloatField()  # Width as percentage of page width
+    height = models.FloatField()  # Height as percentage of page height
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_signed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Signature placement on page {self.page_number} for {self.document.title}"
     

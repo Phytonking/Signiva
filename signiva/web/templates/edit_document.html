@@ -5,130 +5,243 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto py-8">
-    <h1 class="text-2xl font-bold mb-4">Edit Document</h1>
-
-    <!-- Display form errors -->
-    {% if form.errors %}
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <strong>Error:</strong> Please correct the errors below.
-            <ul class="mt-2">
-                {% for field, errors in form.errors.items %}
-                    {% for error in errors %}
-                        <li>{{ error }}</li>
-                    {% endfor %}
-                {% endfor %}
-            </ul>
-        </div>
-    {% endif %}
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Document Details Form -->
-        <div class="bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-bold mb-4">Document Details</h2>
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="mb-4">
-                    <label for="id_title" class="block text-gray-700">Title</label>
-                    <input type="text" name="title" id="id_title" value="{{ form.title.value }}" 
-                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" required>
-                </div>
-                <div class="mb-4">
-                    <label for="id_description" class="block text-gray-700">Description</label>
-                    <textarea name="description" id="id_description" 
-                              class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">{{ form.description.value }}</textarea>
-                </div>
-                <div class="mb-4">
-                    <label for="id_file" class="block text-gray-700">Replace PDF File</label>
-                    <input type="file" name="file" id="id_file" 
-                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
-                    <p class="text-sm text-gray-500 mt-2">Current file: 
-                        <a href="{% url 'download_document' document.id %}" class="text-blue-600 hover:underline">{{ document.file.name }}</a>
-                    </p>
-                </div>
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save Changes</button>
-                <a href="{% url 'document_list' %}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 ml-2">Cancel</a>
-            </form>
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">{{ document.title }}</h1>
+                <p class="text-sm text-gray-500">Uploaded on {{ document.uploaded_at|date:"F j, Y" }}</p>
+            </div>
+            <div class="flex space-x-4">
+                <a href="{% url 'document_list' %}" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    Back to Documents
+                </a>
+                <button id="addSignatureBox" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Add Signature Box
+                </button>
+                <button id="saveChanges" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                    Save Changes
+                </button>
+            </div>
         </div>
 
-        <!-- PDF Editor Section -->
-        <div class="bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-bold mb-4">PDF Editor</h2>
-            <div class="mb-4">
-                <div class="flex space-x-2 mb-4">
-                    <button id="prev-page" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Previous</button>
-                    <span id="page-num" class="px-4 py-2"></span>
-                    <button id="next-page" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Next</button>
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 p-4 rounded {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                    {{ message }}
                 </div>
-                <div class="border rounded-lg overflow-hidden">
-                    <canvas id="pdf-canvas" class="w-full"></canvas>
+            {% endfor %}
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- PDF Viewer -->
+            <div class="bg-white rounded-lg shadow-md p-4">
+                <div class="mb-4">
+                    <div class="flex justify-between items-center">
+                        <div class="flex space-x-2">
+                            <button id="prevPage" class="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">Previous</button>
+                            <span id="pageNum" class="px-3 py-1">Page 1</span>
+                            <button id="nextPage" class="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">Next</button>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            Page <span id="currentPage">1</span> of <span id="totalPages">1</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="mt-4 flex space-x-2">
-                    <button id="add-text" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add Text</button>
-                    <button id="add-signature" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Add Signature</button>
-                    <button id="save-pdf" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">Save Changes</button>
+                <div id="pdfViewer" class="border rounded-lg overflow-hidden relative bg-gray-50">
+                    <canvas id="pdfCanvas" class="w-full"></canvas>
+                    <div id="signatureBoxes" class="absolute inset-0"></div>
+                    <div id="textElements" class="absolute inset-0"></div>
+                </div>
+            </div>
+
+            <!-- Document Elements -->
+            <div class="bg-white rounded-lg shadow-md p-4">
+                <h2 class="text-xl font-semibold mb-4 text-gray-900">Document Elements</h2>
+                <div class="space-y-6">
+                    <!-- Signature Boxes Section -->
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900 mb-3">Signature Boxes</h3>
+                        <div id="signatureBoxesList" class="space-y-3">
+                            <!-- Signature boxes will be listed here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Text Elements Section -->
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900 mb-3">Text Elements</h3>
+                        <div id="textElementsList" class="space-y-3">
+                            <!-- Text elements will be listed here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Signature Pad Modal -->
-<div id="signature-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
-    <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+<!-- Signature Box Modal -->
+<div id="signatureBoxModal" class="fixed inset-0 bg-black bg-opacity-50 hidden">
+    <div class="bg-white rounded-lg p-6 max-w-md mx-auto mt-20">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-bold">Add Signature</h3>
-            <button id="close-signature-modal" class="text-gray-500 hover:text-gray-700">
+            <h3 class="text-xl font-semibold text-gray-900">Add Signature Box</h3>
+            <button id="cancelSignatureBox" class="text-gray-500 hover:text-gray-700">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-        
-        <!-- Saved Signatures Section -->
-        <div class="mb-4">
-            <h4 class="text-lg font-semibold mb-2">Saved Signatures</h4>
-            <div id="saved-signatures" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-                <!-- Saved signatures will be displayed here -->
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Page Number</label>
+                <input type="number" id="pageNumber" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
             </div>
-        </div>
-
-        <div class="border rounded-lg overflow-hidden bg-white">
-            <canvas id="signature-pad" class="w-full h-64 touch-none"></canvas>
-        </div>
-        <div class="mt-4 flex justify-between items-center">
-            <div class="flex space-x-2">
-                <button id="clear-signature" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
-                    Clear
-                </button>
-                <button id="save-signature" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
-                    Save Signature
-                </button>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Width (%)</label>
+                <input type="number" id="boxWidth" min="1" max="100" value="30" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
             </div>
-            <button id="apply-signature" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                Apply Signature
-            </button>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Height (%)</label>
+                <input type="number" id="boxHeight" min="1" max="100" value="15" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Signer Email</label>
+                <input type="email" id="signerEmail" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Enter signer's email">
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button id="confirmSignatureBox" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Add Box</button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- PDF.js -->
+<!-- Text Editing Toolbar -->
+<div id="textToolbar" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg p-2 hidden">
+    <div class="flex items-center space-x-4">
+        <select id="fontSize" class="rounded border-gray-300 text-sm">
+            <option value="8">8</option>
+            <option value="10">10</option>
+            <option value="12" selected>12</option>
+            <option value="14">14</option>
+            <option value="16">16</option>
+            <option value="18">18</option>
+            <option value="20">20</option>
+            <option value="24">24</option>
+            <option value="28">28</option>
+            <option value="32">32</option>
+            <option value="36">36</option>
+            <option value="40">40</option>
+            <option value="48">48</option>
+            <option value="56">56</option>
+            <option value="64">64</option>
+            <option value="72">72</option>
+        </select>
+        <input type="color" id="textColor" value="#000000" class="w-8 h-8 rounded cursor-pointer">
+        <button id="boldText" class="p-1 hover:bg-gray-100 rounded">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+        </button>
+        <button id="italicText" class="p-1 hover:bg-gray-100 rounded">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+            </svg>
+        </button>
+        <button id="deleteText" class="p-1 hover:bg-gray-100 rounded text-red-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+        </button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.11/dist/interact.min.js"></script>
 <script>
     // Initialize PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
+    
     let pdfDoc = null;
     let pageNum = 1;
     let pageRendering = false;
     let pageNumPending = null;
-    let scale = 1.5;
+    let canvas = document.getElementById('pdfCanvas');
+    let ctx = canvas.getContext('2d');
+    let signatureBoxes = [];
+    let currentSignatureBox = null;
+    let isDragging = false;
+    let isResizing = false;
+    let selectedBox = null;
+    let textElements = [];
+    let selectedTextElement = null;
+    let isEditing = false;
+
+    // Initialize interact.js
+    interact('.signature-box').draggable({
+        inertia: true,
+        modifiers: [
+            interact.modifiers.restrictRect({
+                restriction: 'parent',
+                endOnly: true
+            })
+        ],
+        listeners: {
+            move(event) {
+                const target = event.target;
+                const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+
+                target.style.transform = `translate(${x}px, ${y}px)`;
+                target.setAttribute('data-x', x);
+                target.setAttribute('data-y', y);
+                
+                // Update signature box coordinates
+                const boxId = target.getAttribute('data-box-id');
+                const box = signatureBoxes.find(b => b.id === boxId);
+                if (box) {
+                    box.x = (x / canvas.width) * 100;
+                    box.y = (y / canvas.height) * 100;
+                }
+            }
+        }
+    }).resizable({
+        edges: { left: true, right: true, bottom: true, top: true },
+        modifiers: [
+            interact.modifiers.restrictEdges({
+                outer: 'parent',
+                endOnly: true
+            })
+        ],
+        listeners: {
+            move(event) {
+                const target = event.target;
+                let x = (parseFloat(target.getAttribute('data-x')) || 0);
+                let y = (parseFloat(target.getAttribute('data-y')) || 0);
+
+                Object.assign(target.style, {
+                    width: `${event.rect.width}px`,
+                    height: `${event.rect.height}px`,
+                    transform: `translate(${x}px, ${y}px)`
+                });
+
+                // Update signature box dimensions
+                const boxId = target.getAttribute('data-box-id');
+                const box = signatureBoxes.find(b => b.id === boxId);
+                if (box) {
+                    box.width = (event.rect.width / canvas.width) * 100;
+                    box.height = (event.rect.height / canvas.height) * 100;
+                }
+            }
+        }
+    });
 
     // Load the PDF
     function loadPDF() {
-        const url = "{% url 'download_document' document.id %}";
-        pdfjsLib.getDocument(url).promise.then(function(pdf) {
+        pdfjsLib.getDocument('{{ document.file.url }}').promise.then(function(pdf) {
             pdfDoc = pdf;
-            document.getElementById('page-num').textContent = pageNum + ' / ' + pdf.numPages;
+            document.getElementById('totalPages').textContent = pdf.numPages;
             renderPage(pageNum);
         });
     }
@@ -137,10 +250,7 @@
     function renderPage(num) {
         pageRendering = true;
         pdfDoc.getPage(num).then(function(page) {
-            const canvas = document.getElementById('pdf-canvas');
-            const ctx = canvas.getContext('2d');
-
-            const viewport = page.getViewport({ scale: scale });
+            const viewport = page.getViewport({scale: 1.5});
             canvas.height = viewport.height;
             canvas.width = viewport.width;
 
@@ -156,10 +266,39 @@
                     renderPage(pageNumPending);
                     pageNumPending = null;
                 }
+                document.getElementById('currentPage').textContent = num;
+                renderSignatureBoxes();
+                renderTextElements();
             });
         });
 
-        document.getElementById('page-num').textContent = num + ' / ' + pdfDoc.numPages;
+        document.getElementById('pageNum').textContent = 'Page ' + num;
+    }
+
+    // Render signature boxes
+    function renderSignatureBoxes() {
+        const container = document.getElementById('signatureBoxes');
+        container.innerHTML = '';
+
+        signatureBoxes.forEach(box => {
+            if (box.pageNumber === pageNum) {
+                const boxElement = document.createElement('div');
+                boxElement.className = 'signature-box absolute border-2 border-blue-500 bg-blue-100 bg-opacity-20 cursor-move';
+                boxElement.setAttribute('data-box-id', box.id);
+                
+                const boxWidth = canvas.width * (box.width / 100);
+                const boxHeight = canvas.height * (box.height / 100);
+                const x = canvas.width * (box.x / 100);
+                const y = canvas.height * (box.y / 100);
+                
+                boxElement.style.width = `${boxWidth}px`;
+                boxElement.style.height = `${boxHeight}px`;
+                boxElement.style.left = `${x}px`;
+                boxElement.style.top = `${y}px`;
+                
+                container.appendChild(boxElement);
+            }
+        });
     }
 
     // Queue rendering of the next page
@@ -172,218 +311,351 @@
     }
 
     // Previous page
-    document.getElementById('prev-page').addEventListener('click', function() {
-        if (pageNum <= 1) {
-            return;
-        }
+    document.getElementById('prevPage').addEventListener('click', function() {
+        if (pageNum <= 1) return;
         pageNum--;
         queueRenderPage(pageNum);
     });
 
     // Next page
-    document.getElementById('next-page').addEventListener('click', function() {
-        if (pageNum >= pdfDoc.numPages) {
-            return;
-        }
+    document.getElementById('nextPage').addEventListener('click', function() {
+        if (pageNum >= pdfDoc.numPages) return;
         pageNum++;
         queueRenderPage(pageNum);
     });
 
-    // Add text button
-    document.getElementById('add-text').addEventListener('click', function() {
-        const canvas = document.getElementById('pdf-canvas');
-        const ctx = canvas.getContext('2d');
-        const text = prompt('Enter text to add:');
-        if (text) {
-            ctx.font = '20px Arial';
-            ctx.fillStyle = 'red';
-            ctx.fillText(text, 50, 50);
-        }
+    // Signature box functionality
+    document.getElementById('addSignatureBox').addEventListener('click', function() {
+        document.getElementById('signatureBoxModal').classList.remove('hidden');
+        document.getElementById('pageNumber').value = pageNum;
     });
 
-    // Signature Pad Implementation
-    const signatureModal = document.getElementById('signature-modal');
-    const signatureCanvas = document.getElementById('signature-pad');
-    
-    // Set canvas size
-    function resizeCanvas() {
-        const container = signatureCanvas.parentElement;
-        const width = container.offsetWidth;
-        const height = 256; // 64 * 4 (h-64 = 16rem = 256px)
-        
-        // Set canvas size
-        signatureCanvas.width = width;
-        signatureCanvas.height = height;
-        
-        // Clear the pad
-        signaturePad.clear();
-    }
-
-    // Initialize signature pad with proper options
-    const signaturePad = new SignaturePad(signatureCanvas, {
-        backgroundColor: 'rgb(255, 255, 255)',
-        penColor: 'rgb(0, 0, 0)',
-        minWidth: 0.5,
-        maxWidth: 2.5,
-        throttle: 16,
-        onBegin: () => {
-            // Optional: Add any visual feedback when drawing starts
-            signatureCanvas.style.cursor = 'crosshair';
-        },
-        onEnd: () => {
-            // Optional: Reset cursor when drawing ends
-            signatureCanvas.style.cursor = 'default';
-        }
+    document.getElementById('cancelSignatureBox').addEventListener('click', function() {
+        document.getElementById('signatureBoxModal').classList.add('hidden');
     });
 
-    // Handle window resize
-    window.addEventListener('resize', resizeCanvas);
+    document.getElementById('confirmSignatureBox').addEventListener('click', function() {
+        const pageNumber = parseInt(document.getElementById('pageNumber').value);
+        const width = parseInt(document.getElementById('boxWidth').value);
+        const height = parseInt(document.getElementById('boxHeight').value);
+        const signerEmail = document.getElementById('signerEmail').value;
 
-    // Handle modal open/close
-    document.getElementById('add-signature').addEventListener('click', function() {
-        signatureModal.classList.remove('hidden');
-        signatureModal.classList.add('flex');
-        signaturePad.clear();
-        updateSavedSignaturesList();
-        // Ensure canvas is properly sized when modal opens
-        setTimeout(resizeCanvas, 0);
+        // Add signature box to the list
+        const signatureBox = {
+            id: Date.now().toString(),
+            pageNumber: pageNumber,
+            width: width,
+            height: height,
+            x: 50, // Default to center
+            y: 50,  // Default to center
+            signerEmail: signerEmail
+        };
+
+        signatureBoxes.push(signatureBox);
+        updateSignatureBoxesList();
+        document.getElementById('signatureBoxModal').classList.add('hidden');
+        renderSignatureBoxes();
     });
 
-    // Signature Storage and Management
-    const SIGNATURE_STORAGE_KEY = 'saved_signatures';
-    let savedSignatures = JSON.parse(localStorage.getItem(SIGNATURE_STORAGE_KEY) || '[]');
+    function updateSignatureBoxesList() {
+        const list = document.getElementById('signatureBoxesList');
+        list.innerHTML = '';
 
-    // Function to save signature
-    function saveSignature() {
-        if (signaturePad.isEmpty()) {
-            alert('Please draw a signature first');
-            return;
-        }
-
-        const signatureData = signaturePad.toDataURL();
-        const name = prompt('Enter a name for this signature:');
-        if (name) {
-            savedSignatures.push({
-                name: name,
-                data: signatureData,
-                timestamp: new Date().getTime()
-            });
-            localStorage.setItem(SIGNATURE_STORAGE_KEY, JSON.stringify(savedSignatures));
-            updateSavedSignaturesList();
-        }
-    }
-
-    // Function to update the saved signatures display
-    function updateSavedSignaturesList() {
-        const container = document.getElementById('saved-signatures');
-        container.innerHTML = '';
-
-        savedSignatures.forEach((sig, index) => {
-            const div = document.createElement('div');
-            div.className = 'relative group';
-            
-            const img = document.createElement('img');
-            img.src = sig.data;
-            img.className = 'w-full h-24 object-contain border rounded cursor-pointer hover:border-blue-500';
-            img.title = sig.name;
-            
-            const deleteBtn = document.createElement('button');
-            deleteBtn.innerHTML = '×';
-            deleteBtn.className = 'absolute top-0 right-0 bg-red-500 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity';
-            deleteBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (confirm('Delete this signature?')) {
-                    savedSignatures.splice(index, 1);
-                    localStorage.setItem(SIGNATURE_STORAGE_KEY, JSON.stringify(savedSignatures));
-                    updateSavedSignaturesList();
-                }
-            };
-
-            img.onclick = () => {
-                const img = new Image();
-                img.src = sig.data;
-                img.onload = () => {
-                    const canvas = document.getElementById('pdf-canvas');
-                    const ctx = canvas.getContext('2d');
-                    
-                    const signatureWidth = 200;
-                    const signatureHeight = (signatureWidth * img.height) / img.width;
-                    const x = canvas.width - signatureWidth - 50;
-                    const y = canvas.height - signatureHeight - 50;
-
-                    ctx.drawImage(img, x, y, signatureWidth, signatureHeight);
-                    signatureModal.classList.add('hidden');
-                    signatureModal.classList.remove('flex');
-                };
-            };
-
-            div.appendChild(img);
-            div.appendChild(deleteBtn);
-            container.appendChild(div);
+        signatureBoxes.forEach((box, index) => {
+            const boxElement = document.createElement('div');
+            boxElement.className = 'border rounded p-3 bg-gray-50';
+            boxElement.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="font-medium">Page ${box.pageNumber}</p>
+                        <p class="text-sm text-gray-600">${box.width}% × ${box.height}%</p>
+                    </div>
+                    <button onclick="removeSignatureBox('${box.id}')" class="text-red-500 hover:text-red-700">
+                        Remove
+                    </button>
+                </div>
+            `;
+            list.appendChild(boxElement);
         });
     }
 
-    // Save signature button
-    document.getElementById('save-signature').addEventListener('click', saveSignature);
+    function removeSignatureBox(boxId) {
+        signatureBoxes = signatureBoxes.filter(box => box.id !== boxId);
+        updateSignatureBoxesList();
+        renderSignatureBoxes();
+    }
 
-    // Close signature modal
-    document.getElementById('close-signature-modal').addEventListener('click', function() {
-        signatureModal.classList.add('hidden');
-        signatureModal.classList.remove('flex');
+    // Handle PDF viewer click
+    document.getElementById('pdfViewer').addEventListener('click', function(e) {
+        const rect = e.target.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Convert coordinates to percentage
+        const xPercent = (x / rect.width) * 100;
+        const yPercent = (y / rect.height) * 100;
+
+        // Create new text element
+        const textElement = {
+            id: Date.now().toString(),
+            text: 'Click to edit',
+            fontSize: 12,
+            color: '#000000',
+            pageNumber: pageNum,
+            x: xPercent,
+            y: yPercent,
+            bold: false,
+            italic: false
+        };
+
+        textElements.push(textElement);
+        updateTextElementsList();
+        renderTextElements();
+        
+        // Select the new text element
+        selectTextElement(textElement);
     });
 
-    // Clear signature
-    document.getElementById('clear-signature').addEventListener('click', function() {
-        signaturePad.clear();
+    function selectTextElement(element) {
+        selectedTextElement = element;
+        isEditing = true;
+        
+        // Show toolbar
+        document.getElementById('textToolbar').classList.remove('hidden');
+        
+        // Update toolbar values
+        document.getElementById('fontSize').value = element.fontSize;
+        document.getElementById('textColor').value = element.color;
+        
+        // Update text element appearance
+        const textElement = document.querySelector(`[data-element-id="${element.id}"]`);
+        if (textElement) {
+            textElement.contentEditable = true;
+            textElement.focus();
+            textElement.classList.add('selected');
+        }
+    }
+
+    function deselectTextElement() {
+        if (selectedTextElement) {
+            const textElement = document.querySelector(`[data-element-id="${selectedTextElement.id}"]`);
+            if (textElement) {
+                textElement.contentEditable = false;
+                textElement.classList.remove('selected');
+            }
+            selectedTextElement = null;
+            isEditing = false;
+            document.getElementById('textToolbar').classList.add('hidden');
+        }
+    }
+
+    // Toolbar event listeners
+    document.getElementById('fontSize').addEventListener('change', function(e) {
+        if (selectedTextElement) {
+            selectedTextElement.fontSize = parseInt(e.target.value);
+            const textElement = document.querySelector(`[data-element-id="${selectedTextElement.id}"]`);
+            if (textElement) {
+                textElement.style.fontSize = `${selectedTextElement.fontSize}px`;
+            }
+        }
     });
 
-    // Apply signature to PDF
-    document.getElementById('apply-signature').addEventListener('click', function() {
-        if (signaturePad.isEmpty()) {
-            alert('Please provide a signature');
+    document.getElementById('textColor').addEventListener('input', function(e) {
+        if (selectedTextElement) {
+            selectedTextElement.color = e.target.value;
+            const textElement = document.querySelector(`[data-element-id="${selectedTextElement.id}"]`);
+            if (textElement) {
+                textElement.style.color = selectedTextElement.color;
+            }
+        }
+    });
+
+    document.getElementById('boldText').addEventListener('click', function() {
+        if (selectedTextElement) {
+            selectedTextElement.bold = !selectedTextElement.bold;
+            const textElement = document.querySelector(`[data-element-id="${selectedTextElement.id}"]`);
+            if (textElement) {
+                textElement.style.fontWeight = selectedTextElement.bold ? 'bold' : 'normal';
+            }
+        }
+    });
+
+    document.getElementById('italicText').addEventListener('click', function() {
+        if (selectedTextElement) {
+            selectedTextElement.italic = !selectedTextElement.italic;
+            const textElement = document.querySelector(`[data-element-id="${selectedTextElement.id}"]`);
+            if (textElement) {
+                textElement.style.fontStyle = selectedTextElement.italic ? 'italic' : 'normal';
+            }
+        }
+    });
+
+    document.getElementById('deleteText').addEventListener('click', function() {
+        if (selectedTextElement) {
+            removeTextElement(selectedTextElement.id);
+            deselectTextElement();
+        }
+    });
+
+    // Update renderTextElements function
+    function renderTextElements() {
+        const container = document.getElementById('textElements');
+        container.innerHTML = '';
+
+        textElements.forEach(element => {
+            if (element.pageNumber === pageNum) {
+                const textElement = document.createElement('div');
+                textElement.className = 'text-element absolute cursor-text';
+                textElement.setAttribute('data-element-id', element.id);
+                textElement.style.fontSize = `${element.fontSize}px`;
+                textElement.style.color = element.color;
+                textElement.style.fontWeight = element.bold ? 'bold' : 'normal';
+                textElement.style.fontStyle = element.italic ? 'italic' : 'normal';
+                textElement.textContent = element.text;
+                
+                const x = canvas.width * (element.x / 100);
+                const y = canvas.height * (element.y / 100);
+                
+                textElement.style.left = `${x}px`;
+                textElement.style.top = `${y}px`;
+                
+                // Add click handler for editing
+                textElement.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    selectTextElement(element);
+                });
+                
+                container.appendChild(textElement);
+            }
+        });
+    }
+
+    // Update text element dragging
+    interact('.text-element').draggable({
+        inertia: true,
+        modifiers: [
+            interact.modifiers.restrictRect({
+                restriction: 'parent',
+                endOnly: true
+            })
+        ],
+        listeners: {
+            move(event) {
+                const target = event.target;
+                const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+
+                target.style.transform = `translate(${x}px, ${y}px)`;
+                target.setAttribute('data-x', x);
+                target.setAttribute('data-y', y);
+                
+                // Update text element coordinates
+                const elementId = target.getAttribute('data-element-id');
+                const element = textElements.find(e => e.id === elementId);
+                if (element) {
+                    element.x = (x / canvas.width) * 100;
+                    element.y = (y / canvas.height) * 100;
+                }
+            }
+        }
+    });
+
+    // Save changes
+    document.getElementById('saveChanges').addEventListener('click', function() {
+        // Validate signature boxes
+        if (signatureBoxes.length === 0) {
+            alert('Please add at least one signature box');
             return;
         }
 
-        const signatureData = signaturePad.toDataURL();
-        const img = new Image();
-        img.src = signatureData;
-
-        img.onload = function() {
-            const canvas = document.getElementById('pdf-canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Calculate signature position (bottom right corner)
-            const signatureWidth = 200; // Adjust as needed
-            const signatureHeight = (signatureWidth * img.height) / img.width;
-            const x = canvas.width - signatureWidth - 50; // 50px from right
-            const y = canvas.height - signatureHeight - 50; // 50px from bottom
-
-            // Draw signature
-            ctx.drawImage(img, x, y, signatureWidth, signatureHeight);
-            
-            // Close modal
-            signatureModal.classList.add('hidden');
-            signatureModal.classList.remove('flex');
-        };
-    });
-
-    // Close modal when clicking outside
-    signatureModal.addEventListener('click', function(e) {
-        if (e.target === signatureModal) {
-            signatureModal.classList.add('hidden');
-            signatureModal.classList.remove('flex');
+        // Check for overlapping boxes
+        const hasOverlap = checkOverlappingBoxes();
+        if (hasOverlap) {
+            alert('Warning: Some signature boxes overlap. Please adjust their positions.');
+            if (!confirm('Do you want to save anyway?')) {
+                return;
+            }
         }
+
+        fetch(`/documents/{{ document.id }}/save_signature_placements/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                signature_placements: signatureBoxes
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Signature placements saved successfully!');
+            } else {
+                alert('Error saving signature placements');
+            }
+        });
     });
 
-    // Save PDF button
-    document.getElementById('save-pdf').addEventListener('click', function() {
-        const canvas = document.getElementById('pdf-canvas');
-        const dataURL = canvas.toDataURL('image/png');
-        // Here you would typically send the modified PDF to the server
-        alert('PDF saving functionality to be implemented');
-    });
+    // Check for overlapping boxes
+    function checkOverlappingBoxes() {
+        for (let i = 0; i < signatureBoxes.length; i++) {
+            for (let j = i + 1; j < signatureBoxes.length; j++) {
+                const box1 = signatureBoxes[i];
+                const box2 = signatureBoxes[j];
+                
+                if (box1.pageNumber === box2.pageNumber) {
+                    if (isOverlapping(box1, box2)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 
-    // Load PDF when page loads
-    document.addEventListener('DOMContentLoaded', loadPDF);
+    function isOverlapping(box1, box2) {
+        return !(box1.x + box1.width < box2.x || 
+                box2.x + box2.width < box1.x || 
+                box1.y + box1.height < box2.y || 
+                box2.y + box2.height < box1.y);
+    }
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Load the PDF when the page loads
+    loadPDF();
 </script>
+
+<style>
+    .text-element {
+        min-width: 20px;
+        min-height: 20px;
+        padding: 2px;
+        outline: none;
+    }
+    
+    .text-element.selected {
+        outline: 2px solid #3b82f6;
+        background-color: rgba(59, 130, 246, 0.1);
+    }
+    
+    #textToolbar {
+        z-index: 1000;
+    }
+</style>
 {% endblock %}

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3b82f6;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Document Upload Confirmation</h2>
+        <p>Hello,</p>
+        <p>Your document "<strong>{{ document.title }}</strong>" has been successfully uploaded to Signiva.</p>
+        <p>You can now:</p>
+        <ul>
+            <li>Add signature boxes to the document</li>
+            <li>Request signatures from others</li>
+            <li>Track the signing progress</li>
+        </ul>
+        <p>To view and manage your document, click the button below:</p>
+        <a href="{{ view_url }}" class="button">View Document</a>
+        <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+        <p>{{ view_url }}</p>
+        <p>Best regards,<br>The Signiva Team</p>
+    </div>
+    <div class="footer">
+        <p>This is an automated message from Signiva. Please do not reply to this email.</p>
+    </div>
+</body>
+</html> 

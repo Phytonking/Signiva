@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -139,12 +140,12 @@ ANYSIGN = {
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.office365.com'  # Outlook SMTP server
+EMAIL_HOST = 'smtp.gmail.com'  # For Gmail
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'avi.agola@outlook.com'  # Your Outlook email
-EMAIL_HOST_PASSWORD = '@Avimongo07'  # Your Outlook password
-DEFAULT_FROM_EMAIL = 'avi.agola@outlook.com'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'your-email@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'your-app-specific-password')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'your-email@gmail.com')
 
-# Add SITE_URL for email links
-SITE_URL = 'http://localhost:8000'  # Change this in production
+# Site URL for email links
+SITE_URL = os.getenv('SITE_URL', 'http://localhost:8000')

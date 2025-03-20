@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,26 +12,26 @@
             padding: 20px;
         }
         .container {
-            background-color: #f9f9f9;
-            border-radius: 5px;
+            background-color: #f9fafb;
+            border-radius: 8px;
             padding: 20px;
-            margin-top: 20px;
+            margin: 20px 0;
         }
         .button {
             display: inline-block;
-            padding: 10px 20px;
-            background-color: #0078d4;
+            padding: 12px 24px;
+            background-color: #3b82f6;
             color: white;
             text-decoration: none;
-            border-radius: 5px;
+            border-radius: 6px;
             margin: 20px 0;
         }
         .footer {
             margin-top: 30px;
             padding-top: 20px;
-            border-top: 1px solid #eee;
-            font-size: 12px;
-            color: #666;
+            border-top: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #6b7280;
         }
     </style>
 </head>
@@ -38,14 +39,16 @@
     <div class="container">
         <h2>Signature Request</h2>
         <p>Hello,</p>
-        <p>You have been requested to sign the document "<strong>{{ document.title }}</strong>".</p>
-        <p>Please click the button below to sign the document:</p>
+        <p>You have been requested to sign the document: <strong>{{ document.title }}</strong></p>
+        <p>Please click the button below to review and sign the document:</p>
         <a href="{{ signature_url }}" class="button">Sign Document</a>
         <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
         <p>{{ signature_url }}</p>
-        <div class="footer">
-            <p>This is an automated message from Signiva. Please do not reply to this email.</p>
-        </div>
+        <p>This link will expire in 7 days.</p>
+        <p>Best regards,<br>{{ document.user.username }}</p>
+    </div>
+    <div class="footer">
+        <p>This is an automated message from Signiva. Please do not reply to this email.</p>
     </div>
 </body>
 </html> 

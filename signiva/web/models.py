@@ -31,6 +31,11 @@ class DocumentSignature(anysign.SignatureFactory(SignatureType)):
     signer_email = models.EmailField()
     signed_at = models.DateTimeField(null=True, blank=True)
     signature_image = models.ImageField(upload_to='signatures/', null=True, blank=True)
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('expired', 'Expired')
+    ], default='pending')
 
     def __str__(self):
         return f"Signature for {self.document.title}"

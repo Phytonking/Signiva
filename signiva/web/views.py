@@ -61,6 +61,26 @@ def register_view(request):
         if form.is_valid():
             user = form.save()
             Profile.objects.get_or_create(user=user)
+            
+            # Send welcome email
+            try:
+                subject = 'Welcome to Signiva!'
+                html_message = render_to_string('email/welcome.html', {
+                    'username': user.username,
+                    'login_url': f"{settings.SITE_URL}/login"
+                })
+                send_mail(
+                    subject=subject,
+                    message='',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    html_message=html_message,
+                    fail_silently=False,
+                )
+                logger.info(f"Welcome email sent to {user.email}")
+            except Exception as e:
+                logger.error(f"Failed to send welcome email: {str(e)}")
+            
             login(request, user)
             messages.success(request, 'Registration successful!')
             return redirect('dashboard')
@@ -86,6 +106,26 @@ def upload_document(request):
             document.id = uuid.uuid4()
             document.user = request.user
             document.save()
+            
+            # Send confirmation email
+            try:
+                subject = f'Document Uploaded: {document.title}'
+                html_message = render_to_string('email/document_uploaded.html', {
+                    'document': document,
+                    'view_url': f"{settings.SITE_URL}/document/{document.id}"
+                })
+                send_mail(
+                    subject=subject,
+                    message='',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[request.user.email],
+                    html_message=html_message,
+                    fail_silently=False,
+                )
+                logger.info(f"Document upload confirmation sent to {request.user.email}")
+            except Exception as e:
+                logger.error(f"Failed to send document upload confirmation: {str(e)}")
+            
             return redirect('document_list')
     else:
         form = DocumentForm()
@@ -152,6 +192,25 @@ def profile(request):
             else:
                 request.user.set_password(new_password)
                 request.user.save()
+                
+                # Send password change confirmation email
+                try:
+                    subject = 'Password Changed Successfully'
+                    html_message = render_to_string('email/password_changed.html', {
+                        'username': request.user.username
+                    })
+                    send_mail(
+                        subject=subject,
+                        message='',
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[request.user.email],
+                        html_message=html_message,
+                        fail_silently=False,
+                    )
+                    logger.info(f"Password change confirmation sent to {request.user.email}")
+                except Exception as e:
+                    logger.error(f"Failed to send password change confirmation: {str(e)}")
+                
                 messages.success(request, 'Password updated successfully!')
                 return redirect('login')
         
@@ -159,6 +218,25 @@ def profile(request):
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
             profile_form.save()
+            
+            # Send profile update confirmation email
+            try:
+                subject = 'Profile Updated Successfully'
+                html_message = render_to_string('email/profile_updated.html', {
+                    'username': request.user.username
+                })
+                send_mail(
+                    subject=subject,
+                    message='',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[request.user.email],
+                    html_message=html_message,
+                    fail_silently=False,
+                )
+                logger.info(f"Profile update confirmation sent to {request.user.email}")
+            except Exception as e:
+                logger.error(f"Failed to send profile update confirmation: {str(e)}")
+            
             messages.success(request, 'Profile updated successfully!')
             return redirect('dashboard')
     else:
@@ -223,10 +301,18 @@ def request_signature(request, document_id):
         form = SignatureRequestForm(request.POST)
         if form.is_valid():
             signer_email = form.cleaned_data['signer_email']
+            # Get the first available signature type
+            signature_type = SignatureType.objects.first()
+            if not signature_type:
+                messages.error(request, 'No signature type available. Please contact support.')
+                return redirect('document_list')
+            
+            # Create signature with signature type
             signature = DocumentSignature.objects.create(
                 document=document,
                 signer_email=signer_email,
-                status='pending'
+                status='pending',
+                signature_type=signature_type
             )
             try:
                 send_signature_request_email(document, signer_email)

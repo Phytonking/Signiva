@@ -1,4 +1,4 @@
-Django==1.11.20
+Django==4.2.24
 djangorestframework==3.8.2
 django-mysql==2.4.0
 uwsgi==2.0.15
